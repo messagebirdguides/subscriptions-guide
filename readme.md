@@ -14,7 +14,7 @@ This application implements the following:
 
 Since our sample application is built in Node.js, you need to have Node and npm installed on your computer to run it. You can easily [install them both from npmjs.com](https://www.npmjs.com/get-npm).
 
-We've provided the source code of the sample application [in a GitHub repository](https://github.com), which you can either clone with git or from where you can download a ZIP file with the source code to your computer.
+We've provided the source code of the sample application [in a GitHub repository](https://github.com/messagebirdguides/subscriptions-guide), which you can either clone with git or from where you can download a ZIP file with the source code to your computer.
 
 To install the [MessageBird SDK for Node.js](https://www.npmjs.com/package/messagebird) and other dependencies, open a console pointed at the directory into which you've placed the sample application and run the following command:
 
