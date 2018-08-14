@@ -1,97 +1,154 @@
-// Load Dependencies
+// Load dependencies
 var express = require('express');
 var exphbs  = require('express-handlebars');
 var bodyParser = require('body-parser');
+var MongoClient = require('mongo-mock').MongoClient;
+
+// Load configuration from .env file
+require('dotenv').config();
+
+// This is the MongoDB URL. It does not actually exist
+// but our mock requires a URL that looks "real".
+var dbUrl = "mongodb://localhost:27017/myproject";
 
 // Load and initialize MesageBird SDK
-var messagebird = require('messagebird')('YOUR_API_KEY');
-
-// Set up Order "Database"
-var OrderDatabase = [
-    {
-        name : 'Hannah Hungry',
-        phone : '+319876543210', // <- put your number here for testing
-        items : '1 x Hipster Burger + Fries',
-        status : 'pending'
-    },
-    {
-        name : 'Mike Madeater',
-        phone : '+319876543211', // <- put your number here for testing
-        items : '1 x Chef Special Mozzarella Pizza',
-        status : 'pending'
-    }
-];
-
-// Configure Handlebars Helpers
-var hbs = exphbs.create({
-    helpers: {
-        pending: function(v) { return (v.status == 'pending'); },
-        readyForDelivery: function(v) { return (v.status == 'confirmed' || v.status == 'delayed'); },
-        confirmed: function(v) { return (v.status == 'confirmed'); }
-    }
-})
+var messagebird = require('messagebird')(process.env.MESSAGEBIRD_API_KEY);
 
 // Set up and configure the Express framework
 var app = express();
-app.engine('handlebars', hbs.engine);
+app.engine('handlebars', exphbs({defaultLayout: 'main'}));
 app.set('view engine', 'handlebars');
 app.use(bodyParser.urlencoded({ extended : true }));
 
-// Display page to list orders
+// Handle incoming webhooks
+app.post('/webhook', function(req, res) {
+    // Read input sent from MessageBird
+    var number = req.body.originator;
+    var text = req.body.payload.trim().toLowerCase();
+
+    MongoClient.connect(dbUrl, {}, function(err, db) {
+        // Find subscriber in our database
+        var subscribers = db.collection('subscribers');
+        subscribers.findOne({ number : number }, function(err, doc) {            
+            if (doc == null && text == "subscribe") {
+                // The user has sent the "subscribe" keyword
+                // and is not stored in the database yet, so
+                // we add them to the database.
+                subscribers.insertOne({
+                    number : number,
+                    subscribed : true
+                }, function(err, result) {
+                    console.log("subscribed number", err, result);
+                });
+
+                // Notify the user
+                messagebird.messages.create({
+                    originator : process.env.MESSAGEBIRD_ORIGINATOR,
+                    recipients : [ number ],
+                    body : "Thanks for subscribing to our list! Send STOP anytime if you no longer want to receive messages from us."
+                }, function (err, response) {
+                    console.log(err, response);
+                });
+            }
+            if (doc != null && doc.subscribed == false && text == "subscribe") {
+                // The user has sent the "subscribe" keyword
+                // and was already found in the database in an
+                // unsubscribed state. We resubscribe them by
+                // updating their database entry.
+                subscribers.updateOne({
+                    number : number
+                }, {
+                    $set: {
+                        subscribed : true
+                    }
+                }, function(err, result) {
+                    console.log("resubscribed number", err, result);
+                });
+
+                // Notify the user
+                messagebird.messages.create({
+                    originator : process.env.MESSAGEBIRD_ORIGINATOR,
+                    recipients : [ number ],
+                    body : "Thanks for re-subscribing to our list! Send STOP anytime if you no longer want to receive messages from us."
+                }, function (err, response) {
+                    console.log(err, response);
+                });
+            }
+            if (doc != null && doc.subscribed == true && text == "stop") {
+                // The user has sent the "stop" keyword, indicating
+                // that they want to unsubscribe from messages.
+                // They were found in the database, so we mark
+                // them as unsubscribed and update the entry.
+                subscribers.updateOne({
+                    number : number
+                }, {
+                    $set: {
+                        subscribed : false
+                    }
+                }, function(err, result) {
+                    console.log("unsubscribed number", err, result);
+                });
+
+                // Notify the user
+                messagebird.messages.create({
+                    originator : process.env.MESSAGEBIRD_ORIGINATOR,
+                    recipients : [ number ],
+                    body : "Sorry to see you go! You will not receive further marketing messages from us."
+                }, function (err, response) {
+                    console.log(err, response);
+                });
+            }
+        });
+    });
+
+    // Return any response, MessageBird won't parse this
+    res.send("OK");
+});
+
 app.get('/', function(req, res) {
-    res.render('orders', {
-        orders : OrderDatabase
+    MongoClient.connect(dbUrl, {}, function(err, db) {
+        // Get number of subscribers to show on the form
+        var subscribers = db.collection('subscribers');
+        subscribers.count({ subscribed : true }, function(err, count) { 
+            // Render form
+            res.render('home', { count : count });
+        });
     });
 });
 
-// Execute action to update order
-app.post('/updateOrder', function(req, res) {
-    // Read request
-    var id = req.body.id;
-    var newStatus = req.body.status;
-    
-    // Get order
-    var order = OrderDatabase[id];
-    if (order) {
-        // Update order
-        order.status = newStatus;
-        
-        // Compose a message, based on current status
-        var body = "";
-        switch (order.status) {
-            case 'confirmed':
-                body = order.name + ", thanks for ordering at OmNomNom Foods! We are now preparing your food with love and fresh ingredients and will keep you updated.";
-                break;
-            case 'delayed':
-                body = order.name + ", sometimes good things take time! Unfortunately your order is slightly delayed but will be delivered as soon as possible.";
-                break;
-            case 'delivered':
-                body = order.name + ", you can start setting the table! Our driver is on their way with your order! Bon appetit!";
-                break;
-        }
+app.post('/send', function(req, res) {
+    // Read input from user
+    var message = req.body.message;
 
-        // Send the message through MessageBird's API
-        messagebird.messages.create({
-            originator : 'OmNomNom',
-            recipients : [ order.phone ],
-            body : body
-        }, function (err, response) {
-            if (err) {
-                // Request has failed
-                console.log(err);
-                res.send("Error occured while sending message!");
-            } else {
-                // Request was successful
-                console.log(response);
-                res.redirect('/');
+    MongoClient.connect(dbUrl, {}, function(err, db) {
+        // Get number of subscribers to show on the form
+        var subscribers = db.collection('subscribers');
+        subscribers.find({ subscribed : true }, {}).toArray(function(err, docs) {
+            // Collect all numbers
+            var recipients = [];
+            var count = 0;
+            for (var d in docs) {
+                recipients.push(docs[d].number);
+                count = parseInt(d)+1;
+                if (count == docs.length || count % 50 == 0) {
+                    // We have reached either the end of our list or 50 numbers,
+                    // which is the maximum that MessageBird accepts in a single
+                    // API call, so we send the message and then, if any numbers
+                    // are remaining, start a new list
+                    messagebird.messages.create({
+                        originator : process.env.MESSAGEBIRD_ORIGINATOR,
+                        recipients : recipients,
+                        body : message
+                    }, function (err, response) {
+                        console.log(err, response);
+                    });
+                    recipients = [];
+                }
             }
+
+            res.render('sent', { count : count });
         });
-        
-        // Save order
-        OrderDatabase[id] = order;        
-    } else {
-        res.send("Invalid input!");
-    }    
+    });
 });
 
 // Start the application
