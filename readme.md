@@ -1,9 +1,11 @@
-# SMS Marketing Subscriptions in Node.js
-### 30 min build time ⏱
+# SMS Marketing Subscriptions
+### ⏱ 30 min build time 
+
+## Why build SMS marketing subscriptions? 
 
 SMS makes it incredibly easy for businesses to reach consumers everywhere at any time, directly on their mobile devices. For many people, these messages are a great way to discover things like discounts and special offers from a company, while others might find them annoying. For this reason, it is  important and also required by law in many countries, to provide clear opt-in and opt-out mechanisms for SMS broadcast lists. To make these work independently of a website it's useful to assign a programmable [virtual mobile number](https://www.messagebird.com/en/numbers) to your SMS campaign and handle incoming messages programmatically so users can control their subscription with basic command keywords.
 
-In this guide we'll show you how to implement an SMS marketing campaign subscription tool built as a sample application in Node.js.
+In this MessageBird Developer Guide, we'll show you how to implement an SMS marketing campaign subscription tool built as a sample application in Node.js.
 
 This application implements the following:
 * A person can send the keyword _SUBSCRIBE_ to a specific VMN, that the company includes in their advertising material, to opt in to messages, which is immediately confirmed.
@@ -14,7 +16,7 @@ This application implements the following:
 
 Since our sample application is built in Node.js, you need to have Node and npm installed on your computer to run it. You can easily [install them both from npmjs.com](https://www.npmjs.com/get-npm).
 
-We've provided the source code of the sample application [in a GitHub repository](https://github.com/messagebirdguides/subscriptions-guide), which you can either clone with git or from where you can download a ZIP file with the source code to your computer.
+We've provided the source code of the sample application in the [MessageBird Developer Guides GitHub repository](https://github.com/messagebirdguides/subscriptions-guide), which you can either clone with git or from where you can download a ZIP file with the source code to your computer.
 
 To install the [MessageBird SDK for Node.js](https://www.npmjs.com/package/messagebird) and other dependencies, open a console pointed at the directory into which you've placed the sample application and run the following command:
 
@@ -201,7 +203,7 @@ app.post('/send', function(req, res) {
 
 Double-check that you have set up your number correctly with a flow that forwards incoming messages to a localtunnel URL and that the tunnel is still running. You can restart the tunnel with the `lt` command, but this will change your URL, so you have to update the flow as well.
 
-Next, run the following command to start the application:
+To start the sample application you have to enter another command, but your existing console window is now busy running your tunnel. Therefore you need to open another one. On a Mac you can press _Command_ + _Tab_ to open a second tab that's already pointed to the correct directory. With other operating systems you may have to resort to manually open another console window. Once you've got a command prompt, type the following to start the application:
 
 ````bash
 node index.js
@@ -212,6 +214,8 @@ While keeping the console open, take out your phone, launch the SMS app and send
 ## Nice work!
 
 You can adapt the sample application for production by replying mongo-mock with a real MongoDB client, deploying the application to a server and providing that server's URL to your flow. Of course, you should add some authorization to the web form. Otherwise, anybody could send messages to your subscribers.
+
+Don't forget to download the code from the [MessageBird Developer Guides GitHub repository](https://github.com/messagebirdguides/subscriptions-guide).
 
 ## Next steps
 
